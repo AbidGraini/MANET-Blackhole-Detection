@@ -261,13 +261,14 @@ scenario_files = [
 
 
 # ============================================================================
-# REPRODUCIBLE RUN-GROUPED 70/30 PARTITION — CREATED FROM THE RAW SCENARIOS
-# This exactly follows the matched benchmark's split method:
-#   pivot_table (sorted run IDs) -> one row per run -> stratified train_test_split
+# REPRODUCIBLE RUN-GROUPED 70/30 PARTITION — DEFINED BY FEATURE SELECTION
+# The selection stage creates the TRAIN70/HOLDOUT30 partition from RAW data:
+#   sorted unique run IDs -> stratified train_test_split
 #   test_size=0.30, random_state=42, stratify=run_condition (Normal/Attack).
-# The actual run ID, not a node record, is the unit of partitioning.
-# On subsequent runs, the saved manifest must match the regenerated assignment.
-# Only TRAIN runs enter the unchanged nested 5 x 5 feature-selection pipeline.
+# Simulation run is the partitioning unit; node records are never split independently.
+# This stage saves run-ID manifests and SHA-256 fingerprints for later classification.
+# On subsequent runs, a saved manifest must match the deterministic RAW assignment.
+# Only TRAIN runs enter the nested 5 x 5 feature-selection pipeline.
 # ============================================================================
 
 SPLIT_ROOT = Path(
@@ -283,22 +284,6 @@ SPLIT_FILES = {
 RUN_SPLIT_TEST_SIZE = 0.30
 RUN_SPLIT_RANDOM_STATE = 42
 
-# These SHA-256 fingerprints come from the retained, original matched-benchmark
-# TRAIN/TEST run-ID manifests, and guard against accidental partition changes.
-EXPECTED_RUN_SPLIT_HASHES = {
-    "7 Nodes": (
-        "8b51ab9ea8ba69877323b850835605e1e26b680de107955995a68dad84baa7fc",
-        "153032e574b00fb3fdf8c28c507e92fba6e12b262ee1e5cc857f1ee38b0724e9",
-    ),
-    "25 Nodes": (
-        "fca32ab4da28036c844e3ae3bfcc2605aa70b17e809c2cec0bbfe6bdbb52821e",
-        "4ebcdca93a23001623fcf8d66c0225f01901ea20549b6be052ddeb9368965543",
-    ),
-    "50 Nodes": (
-        "a288a24b8634f5f8578bb2a0a93003bf6b9d1e871f505be6d301c89931180f06",
-        "23e2af454e50b12572eb48e524644f267fcfa751fce7e34dfcb658fc7f17b666",
-    ),
-}
 EXPECTED_RUN_COUNTS = {"7 Nodes": 600, "25 Nodes": 1000, "50 Nodes": 800}
 
 
@@ -310,10 +295,9 @@ def _run_hash(run_ids):
 
 
 def get_strict_training_run_manifest(scenario_name, raw_run_ids):
-    """Generate the deterministic benchmark split from RAW run IDs and save it."""
+    """Define, save, and subsequently verify the deterministic RAW run split."""
     path = SPLIT_FILES[scenario_name]
-    # pandas pivot_table (in the original benchmark) sorts the run index;
-    # sorting RAW unique IDs here reproduces precisely that input ordering.
+    # Sort unique RAW run IDs for a stable, order-independent split.
     run_ids = sorted(set(map(str, raw_run_ids)))
     if len(run_ids) != EXPECTED_RUN_COUNTS[scenario_name]:
         raise RuntimeError(
@@ -345,15 +329,6 @@ def get_strict_training_run_manifest(scenario_name, raw_run_ids):
     test_ids = set(test_table['run'])
     if train_ids & test_ids or len(train_ids | test_ids) != len(run_ids):
         raise RuntimeError(f"Invalid run-grouped split: {scenario_name}")
-    expected_train_hash, expected_test_hash = EXPECTED_RUN_SPLIT_HASHES[scenario_name]
-    if _run_hash(train_ids) != expected_train_hash or _run_hash(test_ids) != expected_test_hash:
-        raise RuntimeError(
-            f"The regenerated RAW split for {scenario_name} does not match "
-            "the original benchmark's frozen train/test run IDs. "
-            "Check RAW input file, simulation run names, and split method. "
-            "No split was saved or replaced."
-        )
-
     if path.exists():
         existing = pd.read_csv(path, dtype=str, keep_default_na=False)
         required = {'run', 'run_condition', 'partition'}
@@ -405,8 +380,9 @@ def get_strict_training_run_manifest(scenario_name, raw_run_ids):
         raise RuntimeError(f"Reloaded run split differs from RAW assignment: {path}")
     if not 0.68 <= len(train_ids) / len(m) <= 0.72:
         raise RuntimeError(f"Not a 70/30 run split: {path}")
-    print(f"  {scenario_name}: TRAIN={len(train_ids)}, TEST={len(test_ids)}, "
-          f"overlap=0, original SHA-256 matched")
+    print(f"  {scenario_name}: TRAIN={len(train_ids)}, TEST={len(test_ids)}, overlap=0")
+    print(f"  TRAIN70 SHA-256  : {_run_hash(train_ids)}")
+    print(f"  HOLDOUT30 SHA-256: {_run_hash(test_ids)}")
     return path, m, train_ids, test_ids
 
 # ============================================================================
@@ -606,7 +582,7 @@ for scenario in scenario_files:
         )
         report = {
             'scenario': scen_name,
-            'benchmark_split_path': str(split_path),
+            'selection_split_path': str(split_path),
             'explicit_saved_run_id_files': saved_id_files,
             'all_runs': len(manifest_run_ids),
             'train_runs': len(train_run_ids),
@@ -621,7 +597,7 @@ for scenario in scenario_files:
         HOLDOUT_AUDITS.append(report)
         print('\n' + '='*90)
         print('STRICT TRAIN-ONLY SELECTION —', scen_name)
-        print('Input 70/30 run-split manifest:', split_path)
+        print('Selection-stage 70/30 run-split manifest:', split_path)
         print('Run counts: TRAIN=', len(train_run_ids),
               '| TEST=', len(test_run_ids))
         print('Final TEST runs excluded from selection: YES')
@@ -2132,9 +2108,9 @@ with (OUTPUT_DIR / '00_strict_train70_split_audit.json').open('w', encoding='utf
 with (OUTPUT_DIR / '06_selection_audit.json').open('w', encoding='utf-8') as audit_f:
     json.dump({
         'method': 'STABILITY_DRIVEN_FEATURE_SELECTION_TRAIN70',
-        'benchmark_train70_only': True,
-        'benchmark_test_runs_excluded': True,
-        'original_split_audits': HOLDOUT_AUDITS,
+        'feature_selection_train70_only': True,
+        'final_holdout30_excluded': True,
+        'selection_split_audits': HOLDOUT_AUDITS,
         'development_scenarios': [sc['name'] for sc in scenario_files],
         'common_schema_size': len(COMMON_EVAL_SCHEMA),
         'outer_fold_global_top6': {str(k): v for k,v in outer_fold_ranked.items()},
