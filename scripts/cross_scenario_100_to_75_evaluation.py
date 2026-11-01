@@ -2737,7 +2737,7 @@ def format_ci(
     )
 
 
-article_df = (
+summary_table_df = (
     results_df[
         [
             "Transfer",
@@ -2749,7 +2749,7 @@ article_df = (
     .copy()
 )
 
-article_df[
+summary_table_df[
     "Precision [95% CI]"
 ] = results_df.apply(
     lambda r:
@@ -2761,7 +2761,7 @@ article_df[
     axis=1,
 )
 
-article_df[
+summary_table_df[
     "Recall [95% CI]"
 ] = results_df.apply(
     lambda r:
@@ -2773,7 +2773,7 @@ article_df[
     axis=1,
 )
 
-article_df[
+summary_table_df[
     "F1-score [95% CI]"
 ] = results_df.apply(
     lambda r:
@@ -2785,7 +2785,7 @@ article_df[
     axis=1,
 )
 
-article_df[
+summary_table_df[
     "FPR [95% CI]"
 ] = results_df.apply(
     lambda r:
@@ -2808,10 +2808,10 @@ full_results_path = (
     "100_TO_75_MATCHED_FULL_PRECISION.csv"
 )
 
-article_table_path = (
+summary_table_path = (
     RESULTS_DIR
     /
-    "100_TO_75_TABLE10_ARTICLE_READY.csv"
+    "100_TO_75_RESULTS_SUMMARY.csv"
 )
 
 ks_path = (
@@ -2843,8 +2843,8 @@ results_df.to_csv(
     index=False,
 )
 
-article_df.to_csv(
-    article_table_path,
+summary_table_df.to_csv(
+    summary_table_path,
     index=False,
 )
 
@@ -3014,12 +3014,12 @@ print(
 
 print("\n" + "=" * 210)
 print(
-    "100 -> 75 ARTICLE-READY TABLE"
+    "100 -> 75 RESULTS SUMMARY"
 )
 print("=" * 210)
 
 print(
-    article_df
+    summary_table_df
     .to_string(
         index=False
     )
@@ -3070,8 +3070,8 @@ if display is not None:
     print("\nJUPYTER VIEW — FULL-PRECISION METRICS")
     display(results_df)
 
-    print("\nJUPYTER VIEW — ARTICLE-READY METRICS")
-    display(article_df)
+    print("\nJUPYTER VIEW — RESULTS SUMMARY METRICS")
+    display(summary_table_df)
 
     print("\nJUPYTER VIEW — KS RESULTS")
     display(ks_df)
@@ -3152,7 +3152,7 @@ print("\nSaved outputs:")
 
 for p in [
     full_results_path,
-    article_table_path,
+    summary_table_path,
     ks_path,
     stat_path,
     source_inner_fold_audit_path,
