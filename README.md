@@ -76,6 +76,14 @@ The classification experiments use **Random Forest, Decision Tree, SVM, KNN, and
 - **Cross-scenario** tests fit models and scalers on source data only. Target data are reserved for evaluation; distribution shifts are examined using two-sample Kolmogorov–Smirnov statistics and run-level bootstrap procedures as implemented in the scripts.
 - **Selective dropping** uses probabilities 1.00, 0.50, and 0.25 while retaining the forged-RREP attack strategy. In the mixed-rate experiment, normal-control records that are identical across the two training variants are counted once, and Drop50 is not used for fitting or tuning.
 
+## Raw simulation datasets (GitHub Releases)
+
+The original raw simulation datasets are publicly available in **[Raw Simulation Datasets — Version 1 (`raw-data-v1`)](https://github.com/AbidGraini/MANET-Blackhole-Detection/releases/tag/raw-data-v1)** as nine losslessly compressed `.7z` archives and a `SHA256SUMS.txt` checksum manifest. The archives cover the 7-, 15-, 25-, 50-, 75-, and 100-node scenarios and three selective packet-dropping variants (Drop100, Drop50, and Drop25) for the 7-node scenario. Each archive contains original OMNeT++/INET scalar CSV exports. Download the relevant assets and extract them using 7-Zip before running the corresponding Python scripts.
+
+The CSV files used by the evaluation programs include fields such as `run`, `module`, `name`, and `value`. Match each script to the appropriate released dataset by scenario and dropping probability. The scripts use local input paths, which must be adjusted to the location where the downloaded files are stored.
+
+**Dataset archives and run-partition manifests are distinct:** the `raw-data-v1` release provides nine raw data archives and a SHA-256 checksum manifest, but the saved run-partition manifests and other validation files required by some scripts are not listed among these release assets. They must be supplied separately where the code requires them.
+
 ## Software and input data
 
 The Python scripts use `numpy`, `pandas`, `scipy`, `scikit-learn`, `shap`, and `joblib`. Install the main dependencies in a suitable Python environment:
@@ -86,7 +94,7 @@ python -m pip install numpy pandas scipy scikit-learn shap joblib
 
 To regenerate the simulation exports, use a compatible OMNeT++ 6.1 / INET 4.5.4 setup and the matching files under `simulation/`. The Python evaluations operate on the resulting scalar CSV files (including fields such as `run`, `module`, `name`, and `value`).
 
-**Large raw simulation CSVs are not included in the source-code folders.** Supply the matching exports locally. Before running an evaluation script, inspect its input/output path constants: several scripts contain machine-specific Windows locations (for example, `F:/2026/RAWDATASET/` and `G:/FINAL_BEHAVIORAL_DATASETS/`). Changing those paths is a filesystem adjustment, not a change to the evaluation protocol.
+**Large raw simulation CSVs are distributed via [Releases](https://github.com/AbidGraini/MANET-Blackhole-Detection/releases/tag/raw-data-v1), not included in the source-code folders.** Download the matching files and place them locally. Before running an evaluation script, inspect its input/output path constants: several scripts contain machine-specific Windows locations (for example, `F:/2026/RAWDATASET/` and `G:/FINAL_BEHAVIORAL_DATASETS/`). Changing those paths is a filesystem adjustment, not a change to the evaluation protocol.
 
 The feature-selection program uses `MANET_DATA_DIR`, `MANET_SPLITS_DIR`, and `MANET_SELECTION_OUTPUT` environment variables, defaulting respectively to local `data/`, `splits/`, and `selection_outputs/` directories. It requires the original saved run-partition manifests at:
 
@@ -110,6 +118,6 @@ The scripts generate experiment-specific metrics, predictions, feature records, 
 
 ## Reproducibility scope
 
-The repository provides the **ten scripts listed above** and the `simulation/` source/configuration folder. Complete numerical reproduction also depends on the matching raw datasets, saved partition files, and compatible software versions. Their availability should not be inferred from the presence of the code. The published scripts **do not include one standalone implementation of every ablation configuration**; the ablation results therefore are not fully reproducible from these ten scripts alone.
+The repository provides the **ten scripts listed above** and the `simulation/` source/configuration folder. The raw simulation datasets are accessible through the repository’s [Releases](https://github.com/AbidGraini/MANET-Blackhole-Detection/releases/tag/raw-data-v1) page. Complete numerical reproduction additionally depends on matching each dataset to its experiment, obtaining the required saved run partitions and validation files where applicable, and using compatible software versions. The `raw-data-v1` release does not list the saved run-partition manifests among its assets; obtain the required manifests and other validation inputs separately where needed. The published scripts **do not include one standalone implementation of every ablation configuration**; the ablation results therefore are not fully reproducible from these ten scripts alone.
 
-When citing or using these resources, identify the repository commit, specific script, input scenario, and partition protocol. No dataset download link, publication DOI, or project-wide software license is asserted here without a verified corresponding resource.
+When citing or using these resources, identify the repository commit, specific script, input scenario, and partition protocol. The repository Releases page is linked above for dataset downloads. No publication DOI or project-wide software license is asserted here without a verified corresponding resource.
