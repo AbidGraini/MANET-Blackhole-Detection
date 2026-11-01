@@ -1034,39 +1034,39 @@ def format_ci(point, low, high):
     return f"{point:.4f} [{low:.4f}, {high:.4f}]"
 
 
-article_df = results_df[[
+summary_table_df = results_df[[
     "Transfer",
     "Representation",
     "Features",
     "Classifier",
 ]].copy()
 
-article_df["Precision [95% CI]"] = results_df.apply(
+summary_table_df["Precision [95% CI]"] = results_df.apply(
     lambda r: format_ci(r["Precision"], r["Precision_CI_L"], r["Precision_CI_U"]),
     axis=1,
 )
-article_df["Recall [95% CI]"] = results_df.apply(
+summary_table_df["Recall [95% CI]"] = results_df.apply(
     lambda r: format_ci(r["Recall"], r["Recall_CI_L"], r["Recall_CI_U"]),
     axis=1,
 )
-article_df["F1-score [95% CI]"] = results_df.apply(
+summary_table_df["F1-score [95% CI]"] = results_df.apply(
     lambda r: format_ci(r["F1"], r["F1_CI_L"], r["F1_CI_U"]),
     axis=1,
 )
-article_df["FPR [95% CI]"] = results_df.apply(
+summary_table_df["FPR [95% CI]"] = results_df.apply(
     lambda r: format_ci(r["FPR"], r["FPR_CI_L"], r["FPR_CI_U"]),
     axis=1,
 )
 
 full_results_path = RESULTS_DIR / "25_TO_15_MATCHED_FULL_PRECISION.csv"
-article_table_path = RESULTS_DIR / "25_TO_15_TABLE10_ARTICLE_READY.csv"
+summary_table_path = RESULTS_DIR / "25_TO_15_RESULTS_SUMMARY.csv"
 ks_path = RESULTS_DIR / "25_TO_15_TABLE9_KS.csv"
 stat_path = RESULTS_DIR / "25_TO_15_SOURCE_ONLY_STATISTICAL_FEATURES.csv"
 predictions_path = RESULTS_DIR / "25_TO_15_NODE_LEVEL_PREDICTIONS.csv"
 audit_path = RESULTS_DIR / "25_TO_15_PROTOCOL_AUDIT.json"
 
 results_df.to_csv(full_results_path, index=False)
-article_df.to_csv(article_table_path, index=False)
+summary_table_df.to_csv(summary_table_path, index=False)
 ks_df.to_csv(ks_path, index=False)
 predictions_df.to_csv(predictions_path, index=False)
 
@@ -1122,9 +1122,9 @@ print(
 )
 
 print("\n" + "=" * 210)
-print("25 -> 15 ARTICLE-READY TABLE")
+print("25 -> 15 RESULTS SUMMARY")
 print("=" * 210)
-print(article_df.to_string(index=False))
+print(summary_table_df.to_string(index=False))
 
 print("\n" + "=" * 150)
 print("25 -> 15 KS TABLE")
@@ -1145,8 +1145,8 @@ if display is not None:
     print("\nJUPYTER VIEW — FULL-PRECISION METRICS")
     display(results_df)
 
-    print("\nJUPYTER VIEW — ARTICLE-READY METRICS")
-    display(article_df)
+    print("\nJUPYTER VIEW — RESULTS SUMMARY METRICS")
+    display(summary_table_df)
 
     print("\nJUPYTER VIEW — KS RESULTS")
     display(ks_df)
@@ -1181,7 +1181,7 @@ print("\n25 -> 15 MATCHED EXTERNAL EVALUATION: PASS")
 print("\nSaved outputs:")
 for p in [
     full_results_path,
-    article_table_path,
+    summary_table_path,
     ks_path,
     stat_path,
     source_inner_fold_audit_path,
