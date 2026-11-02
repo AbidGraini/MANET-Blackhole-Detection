@@ -1,0 +1,23 @@
+Statistical_Feature
+arpReplySent:count
+arpRequestSent:count
+arpResolutionCompleted:count
+arpResolutionFailed:count
+arpResolutionInitiated:count
+linkBroken:count
+numLost:count
+numOutOfOrderArrivals:count
+numPacketsForwarded:count
+numRREPsSent:count
+numRREQsReceived:count
+numRREQsSent:count
+packetDropAddressResolutionFailed:count
+packetDropHopLimitReached:count
+packetDropIncorrectlyReceived:count
+packetDropNotAddressedToUs:count
+packetSent:count
+ping loss rate (%)
+ping out-of-order rate (%)
+pingTxSeq:count
+rtt:count
+symbolErrorRate:count

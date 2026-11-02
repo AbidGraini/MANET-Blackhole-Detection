@@ -1,0 +1,106 @@
+X100 MATCHED CLASSIFICATION EVALUATION
+100-NODE MATCHED BENCHMARK
+====================================================================================================
+
+Raw features: 59
+Leakage removed: ['rreqDropCount:count', 'rrepSpoofedCount:count', 'dataDropCount:count']
+
+Full non-leakage
+--------------------------------------------------------------------------------
+Feature count: 56
+Pings sent
+arpReplySent:count
+arpRequestSent:count
+arpResolutionCompleted:count
+arpResolutionFailed:count
+arpResolutionInitiated:count
+bitErrorRate:count
+droppedPacketLengthsQueueOverflow:count
+droppedPacketsQueueOverflow:count
+droppedPkBadChecksum:count
+droppedPkWrongPort:count
+flowIncomingDataRate:count
+flowOutgoingDataRate:count
+flowQueueingTime:count
+incomingPacketLengths:count
+incomingPackets:count
+linkBroken:count
+minSnir:count
+numLost:count
+numOutOfOrderArrivals:count
+numPacketsForwarded:count
+numRREPsSent:count
+numRREQsForwarded:count
+numRREQsReceived:count
+numRREQsSent:count
+outgoingPacketLengths:count
+outgoingPackets:count
+packetDropAddressResolutionFailed:count
+packetDropForwardingDisabled:count
+packetDropHopLimitReached:count
+packetDropIncorrectlyReceived:count
+packetDropInterfaceDown:count
+packetDropNoCarrier:count
+packetDropNoInterfaceFound:count
+packetDropNoRouteFound:count
+packetDropNotAddressedToUs:count
+packetDropUndefined:count
+packetErrorRate:count
+packetReceived:count
+packetSent:count
+passedUpPk:count
+ping loss rate (%)
+ping out-of-order rate (%)
+pingRxSeq:count
+pingTxSeq:count
+queueBitLength:count
+queueLength:count
+queueingTime:count
+radioMode:count
+rcvdPkFromHl:count
+rcvdPkFromLl:count
+receptionState:count
+rtt:count
+sentDownPk:count
+symbolErrorRate:count
+transmissionState:count
+
+Statistical filtering
+--------------------------------------------------------------------------------
+Feature count: 25
+arpReplySent:count
+arpRequestSent:count
+arpResolutionCompleted:count
+arpResolutionFailed:count
+arpResolutionInitiated:count
+droppedPacketsQueueOverflow:count
+linkBroken:count
+numLost:count
+numOutOfOrderArrivals:count
+numPacketsForwarded:count
+numRREPsSent:count
+numRREQsSent:count
+packetDropAddressResolutionFailed:count
+packetDropHopLimitReached:count
+packetDropIncorrectlyReceived:count
+packetDropNotAddressedToUs:count
+packetSent:count
+passedUpPk:count
+ping loss rate (%)
+ping out-of-order rate (%)
+pingTxSeq:count
+queueLength:count
+rtt:count
+symbolErrorRate:count
+transmissionState:count
+
+Proposed 6 features
+--------------------------------------------------------------------------------
+Feature count: 6
+numRREQsSent:count
+numRREPsSent:count
+packetSent:count
+numPacketsForwarded:count
+arpReplySent:count
+linkBroken:count
+

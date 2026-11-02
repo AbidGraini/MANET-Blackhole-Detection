@@ -1,0 +1,26 @@
+Rank,Feature,Abs_Source_Corr_With_Label,B1_Inner_Fold_Selection_Frequency
+1,arpReplySent:count,0.7235120108289628,5
+2,arpRequestSent:count,0.2768433464823647,5
+3,arpResolutionCompleted:count,0.08187993506854396,5
+4,arpResolutionFailed:count,0.20117314017369273,5
+5,arpResolutionInitiated:count,0.30641471710153434,5
+6,droppedPacketsQueueOverflow:count,0.8506113749777723,5
+7,linkBroken:count,0.5029429607228078,5
+8,numLost:count,0.009492074931132645,5
+9,numOutOfOrderArrivals:count,0.0061456803630334025,2
+10,numPacketsForwarded:count,0.10945544170832758,5
+11,numRREPsSent:count,0.991741371059852,5
+12,numRREQsSent:count,0.8715952605238848,5
+13,packetDropAddressResolutionFailed:count,0.11963191221712029,5
+14,packetDropHopLimitReached:count,0.0006772516257712449,5
+15,packetDropIncorrectlyReceived:count,0.10705534107788754,5
+16,packetDropNotAddressedToUs:count,0.12241174721376692,5
+17,packetSent:count,0.8755135171230957,5
+18,passedUpPk:count,0.13317912579365468,5
+19,ping loss rate (%),0.012148746729812275,5
+20,ping out-of-order rate (%),0.006145680363033452,3
+21,pingTxSeq:count,0.012402519455653906,5
+22,queueLength:count,0.20918572197904883,5
+23,rtt:count,0.007281888842728836,5
+24,symbolErrorRate:count,0.11935813629939514,5
+25,transmissionState:count,0.008892603472501153,5
