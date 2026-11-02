@@ -1,6 +1,4 @@
-# =============================================================================
 # CROSS-SCENARIO 100 -> 75 EVALUATION PIPELINE
-#
 # Complete workflow:
 #   STEP 1) Raw OMNeT++ CSVs -> compact node-level datasets (59 features)
 #           using memory-safe, order-independent SQLite streaming.
@@ -9,57 +7,39 @@
 #           2,000 run-level classification bootstrap replicates,
 #           2,000 source/target complete-run KS bootstrap replicates,
 #           machine-readable node-level predictions and protocol audits.
-#
 # Source: 100 nodes — attackers host[30], host[60], host[90]
 # Target:  75 nodes — attackers host[20], host[40]
-# =============================================================================
 
-# =============================================================================
 # 100 -> 75 DATA PREPARATION
 # STEP 1 — PREPARE COMPACT NODE-LEVEL DATASETS
-#
-# PURPOSE
 #   Process the two raw scenarios used in this external transfer:
 #       100-node source
 #       75-node target
-#
 #   Build one compact row per (simulation run, node), preserve run metadata,
 #   and save ALL 59 behavioral features.
-#
-# MEMORY-SAFE POLICY
 #   - Raw CSVs are NEVER loaded fully into RAM.
 #   - Each raw CSV is processed in chunks.
 #   - Partial (run, node, feature) aggregates are stored temporarily in SQLite
 #     on G: and merged on disk.
 #   - 100-node is completed and saved first, then released.
 #   - 75-node is processed afterwards.
-#
-# AGGREGATION SEMANTICS
 #   The node-level representation corresponds to:
-#
 #       pivot_table(
 #           index=['run', 'host_id_full'],
 #           columns='name',
 #           values='value'
 #       )
-#
 #   pandas pivot_table uses MEAN for duplicate keys by default.
 #   The chunked implementation computes the same mean formula:
-#
 #       total_sum / total_count
-#
 #   across all chunks, independently of row order (subject to floating-point rounding).
-#
-# CURRENT DATASETS
 #   100-node: 600 normal + 600 attack = 1200 runs
 #   75-node : 500 normal + 500 attack = 1000 runs
-#
-# ATTACKERS
 #   100-node: host[30], host[60], host[90]
 #   75-node : host[20], host[40]
-# =============================================================================
 
 import gc
+import os
 import sqlite3
 from pathlib import Path
 
@@ -67,21 +47,17 @@ import numpy as np
 import pandas as pd
 
 
-# =============================================================================
 # 1. CONFIGURATION
-# =============================================================================
 
-SOURCE_100_RAW = Path(
-    r"F:/2026/RAWDATASET/100NODE3BLACK600RUN100S.csv"
-)
+PROJECT_ROOT = Path(os.environ.get("MANET_PROJECT_ROOT", str(Path.cwd()))).expanduser()
+RAW_DATA_DIR = Path(os.environ.get("MANET_DATA_DIR", str(PROJECT_ROOT / "data"))).expanduser()
+SOURCE_100_RAW = RAW_DATA_DIR / "100NODE3BLACK600RUN100S.csv"
 
-TARGET_75_RAW = Path(
-    r"F:/2026/RAWDATASET/75NODE2BLACK500RUN100S.csv"
-)
+TARGET_75_RAW = RAW_DATA_DIR / "75NODE2BLACK500RUN100S.csv"
 
-OUTPUT_DIR = Path(
-    r"G:/FINAL_BEHAVIORAL_DATASETS/CROSS_100_75_FULL_PIPELINE"
-)
+OUTPUT_DIR = Path(os.environ.get(
+    "MANET_CROSS_100_75_COMPACT", str(PROJECT_ROOT / "compact" / "CROSS_100_75_FULL_PIPELINE")
+)).expanduser()
 
 OUTPUT_DIR.mkdir(
     parents=True,
@@ -110,8 +86,9 @@ KEEP_TEMP_SQLITE = False
 # Switch to True only if compact CSVs must be rebuilt from the raw OMNeT++ CSVs.
 REBUILD_COMPACT_DATASETS = False
 
-# Store experiment outputs in a dedicated directory.
-B1_OUTPUT_DIR = Path(r"G:/FINAL_BEHAVIORAL_DATASETS/CROSS_100_75_FULL_PIPELINE_B1_GROUPED")
+B1_OUTPUT_DIR = Path(os.environ.get(
+    "MANET_CROSS_100_75_OUTPUT", str(PROJECT_ROOT / "results" / "CROSS_100_75_FULL_PIPELINE_B1_GROUPED")
+)).expanduser()
 B1_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -144,9 +121,7 @@ SCENARIOS = [
 ]
 
 
-# =============================================================================
 # 2. HELPERS
-# =============================================================================
 
 def quote_sql_identifier(name):
     """
@@ -155,9 +130,7 @@ def quote_sql_identifier(name):
     return '"' + str(name).replace('"', '""') + '"'
 
 
-# =============================================================================
 # 3. BUILD ONE COMPACT DATASET — ORDER-INDEPENDENT SQLITE STREAMING
-# =============================================================================
 
 def build_compact_dataset(cfg):
 
@@ -264,9 +237,6 @@ def build_compact_dataset(cfg):
         chunk_number += 1
         raw_rows_total += len(chunk)
 
-        # ---------------------------------------------------------------------
-        # Host extraction.
-        # ---------------------------------------------------------------------
         chunk["host_id_full"] = (
             chunk["module"]
             .astype(str)
@@ -283,9 +253,6 @@ def build_compact_dataset(cfg):
             .copy()
         )
 
-        # ---------------------------------------------------------------------
-        # Numeric scalar values.
-        # ---------------------------------------------------------------------
         chunk["value"] = pd.to_numeric(
             chunk["value"],
             errors="coerce",
@@ -305,12 +272,9 @@ def build_compact_dataset(cfg):
         if chunk.empty:
             continue
 
-        # ---------------------------------------------------------------------
         # Partial aggregation inside the chunk.
-        #
         # sum + count are saved instead of mean because the same
         # run/node/feature key may appear in more than one chunk.
-        # ---------------------------------------------------------------------
         partial = (
             chunk
             .groupby(
@@ -406,9 +370,6 @@ def build_compact_dataset(cfg):
         f"{numeric_host_rows_total:,}"
     )
 
-    # -------------------------------------------------------------------------
-    # Merge all partial aggregates on disk.
-    # -------------------------------------------------------------------------
     print(
         "\n[2] MERGING PARTIAL AGGREGATES ON DISK"
     )
@@ -451,9 +412,6 @@ def build_compact_dataset(cfg):
 
     con.commit()
 
-    # -------------------------------------------------------------------------
-    # Discover behavioral features.
-    # -------------------------------------------------------------------------
     feature_names = [
         row[0]
         for row in con.execute(
@@ -491,9 +449,6 @@ def build_compact_dataset(cfg):
             f"found {len(feature_names)}."
         )
 
-    # -------------------------------------------------------------------------
-    # Build compact WIDE node-level matrix directly from SQLite.
-    # -------------------------------------------------------------------------
     print(
         "\n[3] BUILDING COMPACT NODE-LEVEL MATRIX"
     )
@@ -567,9 +522,6 @@ def build_compact_dataset(cfg):
         df.shape
     )
 
-    # -------------------------------------------------------------------------
-    # Labels and metadata.
-    # -------------------------------------------------------------------------
     host_short = (
         df["host_id_full"]
         .astype(str)
@@ -616,9 +568,6 @@ def build_compact_dataset(cfg):
         .astype(int)
     )
 
-    # -------------------------------------------------------------------------
-    # Structural audits.
-    # -------------------------------------------------------------------------
     print("\n[4] STRUCTURE AUDIT")
 
     run_table = (
@@ -745,9 +694,6 @@ def build_compact_dataset(cfg):
             f"{cfg['name']}: attacker-label audit failed."
         )
 
-    # -------------------------------------------------------------------------
-    # Final feature audit.
-    # -------------------------------------------------------------------------
     metadata_columns = {
         "run",
         "host_id_full",
@@ -779,9 +725,6 @@ def build_compact_dataset(cfg):
             f"found {len(behavioral_features)}."
         )
 
-    # -------------------------------------------------------------------------
-    # Save compact dataset.
-    # -------------------------------------------------------------------------
     compact_columns = (
         [
             "run",
@@ -864,9 +807,7 @@ def build_compact_dataset(cfg):
     return audit
 
 
-# =============================================================================
 # 4. REUSE VALIDATED COMPACT DATASETS OR REBUILD WITH SQLITE STREAMING
-# =============================================================================
 
 def validate_existing_compact(cfg):
     """Audit an existing 59-feature compact before reusing it."""
@@ -941,9 +882,7 @@ for cfg in SCENARIOS:
     gc.collect()
 
 
-# =============================================================================
 # 5. FINAL SUMMARY
-# =============================================================================
 
 audit_df = pd.DataFrame(
     audits
@@ -976,39 +915,25 @@ print("\nSaved audit:")
 print(audit_path)
 
 
-
-# =============================================================================
 # STEP 2 — EXTERNAL CLASSIFICATION AND DISTRIBUTION-SHIFT EVALUATION
 # 100 -> 75 MATCHED EXTERNAL EVALUATION ONLY
-#
-# INPUTS
 #   compact_100_FULL59_WITH_RUN.csv
 #   compact_75_FULL59_WITH_RUN.csv
-#
-# REPRESENTATIONS
 #   1) Full non-leakage = 56
 #   2) Statistical filtering = fitted on 100-node SOURCE ONLY
 #   3) Proposed fixed six-feature representation
-#
-# CLASSIFIERS
 #   RF / DT / SVM / KNN / MLP
-#
-# UNCERTAINTY
 #   - 2,000 ordinary bootstrap replicates
 #   - statistical unit = complete 75-node TARGET simulation run
 #   - fitted source model is kept fixed
-#
 # KS
 #   - Proposed six features only
 #   - 2,000 source/target complete-run bootstrap replicates
-#
-# IMPORTANT
 #   75-node target is NEVER used for:
 #     - statistical feature filtering
 #     - scaler fitting
 #     - classifier fitting
 #     - definition of Proposed-6
-# =============================================================================
 
 import gc
 import json
@@ -1045,9 +970,7 @@ except ImportError:
     display = None
 
 
-# =============================================================================
 # 1. CONFIGURATION
-# =============================================================================
 
 warnings.filterwarnings(
     "ignore",
@@ -1062,9 +985,7 @@ N_BOOTSTRAP = 2000
 KS_BOOTSTRAP = 2000
 CONFIDENCE_LEVEL = 0.95
 
-DATA_DIR = Path(
-    r"G:/FINAL_BEHAVIORAL_DATASETS/CROSS_100_75_FULL_PIPELINE"
-)
+DATA_DIR = OUTPUT_DIR
 
 SOURCE_PATH = (
     DATA_DIR
@@ -1127,9 +1048,7 @@ CLASSIFIER_ORDER = [
 ]
 
 
-# =============================================================================
 # 2. LOAD COMPACT DATASETS ONLY
-# =============================================================================
 
 print("=" * 140)
 print(
@@ -1173,9 +1092,6 @@ print(
     target_df.shape
 )
 
-# -------------------------------------------------------------------------
-# Structure audits.
-# -------------------------------------------------------------------------
 if (
     source_df["run"].nunique()
     !=
@@ -1240,9 +1156,7 @@ print(
 )
 
 
-# =============================================================================
 # 3. RAW 59-FEATURE UNIVERSE
-# =============================================================================
 
 source_raw_features = [
     c
@@ -1318,9 +1232,7 @@ print(
 )
 
 
-# =============================================================================
 # 4. FULL NON-LEAKAGE = 56
-# =============================================================================
 
 missing_leakage = [
     f
@@ -1376,9 +1288,7 @@ if missing_full_target:
     )
 
 
-# =============================================================================
 # SOURCE-ONLY STATISTICAL FILTER — GROUPED 5-FOLD UNION
-# =============================================================================
 # Scope: ALL X100 SOURCE RUNS. This is EXTERNAL 100->75 transfer,
 # NOT the internal TRAIN70/HOLDOUT30 benchmark.
 # In each inner fold fit Zero-variance + Pearson(|r| >= 0.99) on the
@@ -1386,7 +1296,6 @@ if missing_full_target:
 # Union of five fold-wise sets = statistical transfer representation.
 # Neither features nor tie-break use any X75 TARGET rows/labels.
 # All X100 source runs train the final classifiers; X75 is evaluation-only.
-# =============================================================================
 
 def fit_b1_post_filters(X_inner_train, y_inner_train, corr_threshold=0.99):
     """Exact variance + upper-triangular Pearson pruning rule from B1."""
@@ -1544,9 +1453,7 @@ for i, feature in enumerate(statistical_features, 1):
     )
 
 
-# =============================================================================
 # 6. PROPOSED SIX AUDIT
-# =============================================================================
 
 missing_proposed_source = [
     f
@@ -1586,9 +1493,7 @@ print(
 )
 
 
-# =============================================================================
 # 7. REPRESENTATIONS
-# =============================================================================
 
 representations = {
     "Full non-leakage":
@@ -1610,9 +1515,7 @@ for name in REPRESENTATION_ORDER:
     )
 
 
-# =============================================================================
 # 8. CLASSIFIERS
-# =============================================================================
 
 def make_models():
 
@@ -1669,9 +1572,7 @@ def make_models():
     ]
 
 
-# =============================================================================
 # 9. METRIC HELPERS
-# =============================================================================
 
 def point_metrics(
     y_true,
@@ -1991,9 +1892,7 @@ def metrics_from_counts(
     )
 
 
-# =============================================================================
 # 10. COMMON TARGET-RUN BOOTSTRAP SAMPLES
-# =============================================================================
 
 target_run_order = (
     target_df["run"]
@@ -2217,9 +2116,7 @@ def bootstrap_ci(
     }
 
 
-# =============================================================================
 # 11. MATCHED 3 x 5 EXTERNAL BENCHMARK
-# =============================================================================
 
 results = []
 prediction_frames = []
@@ -2321,10 +2218,6 @@ for representation_name in REPRESENTATION_ORDER:
             )
         )
 
-        # -------------------------------------------------------------
-        # Machine-readable target-node predictions for reproducibility.
-        # One row per target node for every representation/classifier.
-        # -------------------------------------------------------------
         prediction_frames.append(
             pd.DataFrame({
                 "Transfer": "100→75",
@@ -2510,9 +2403,7 @@ if len(predictions_df) != expected_prediction_rows:
     )
 
 
-# =============================================================================
 # 12. KS ANALYSIS — PROPOSED SIX ONLY
-# =============================================================================
 
 def run_matrix(
     df,
@@ -2721,9 +2612,7 @@ ks_df = pd.DataFrame(
 )
 
 
-# =============================================================================
 # 13. RESULTS TABLE FOR 100 -> 75
-# =============================================================================
 
 def format_ci(
     point,
@@ -2798,9 +2687,7 @@ summary_table_df[
 )
 
 
-# =============================================================================
 # 14. SAVE OUTPUTS
-# =============================================================================
 
 full_results_path = (
     RESULTS_DIR
@@ -2979,9 +2866,7 @@ with open(
     )
 
 
-# =============================================================================
 # 15. PRINT FINAL TABLES
-# =============================================================================
 
 print("\n" + "=" * 190)
 print(
