@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import hashlib
 import warnings
 import numpy as np
@@ -26,9 +27,7 @@ from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 
-# =============================================================================
 # X100 MATCHED CLASSIFICATION EVALUATION
-# =============================================================================
 # Compare three feature representations using the 100-node simulation dataset:
 # full non-leakage, inner-training statistical filtering and the fixed six
 # features previously selected from X7, X25 and X50 (X100 was not involved).
@@ -39,14 +38,13 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 # SVM, KNN and MLP use scalers fitted on TRAIN70; RF and DT use raw features.
 # HOLDOUT30 labels are used for evaluation and consistency checks only.
 # Attack-class F1 and macro-averaged F1 are reported separately.
-# =============================================================================
 
 
-# =============================================================================
-# 1. CONFIGURATION
-# =============================================================================
-
-RAW_PATH = r'F:/2026/RAWDATASET/100NODE3BLACK600RUN100S.csv'
+# Configure paths through environment variables or use repository-relative defaults.
+PROJECT_ROOT = Path(os.environ.get('MANET_PROJECT_ROOT', str(Path.cwd()))).expanduser()
+DATA_DIR = Path(os.environ.get('MANET_DATA_DIR', str(PROJECT_ROOT / 'data'))).expanduser()
+SPLIT_ROOT = Path(os.environ.get('MANET_SPLITS_DIR', str(PROJECT_ROOT / 'splits'))).expanduser()
+RAW_PATH = str(DATA_DIR / '100NODE3BLACK600RUN100S.csv')
 
 # Both the outer 70/30 run split and the five statistical inner folds
 # use a fixed random seed; statistical filters never use HOLDOUT30 rows.
@@ -60,20 +58,12 @@ FIXED_ATTACKER_IDS = [
 ]
 
 
-# -----------------------------------------------------------------------------
-# Predefined leakage variables
-# -----------------------------------------------------------------------------
-
 LEAKAGE_FEATURES = [
     'rreqDropCount:count',
     'rrepSpoofedCount:count',
     'dataDropCount:count'
 ]
 
-
-# -----------------------------------------------------------------------------
-# Final proposed representation
-# -----------------------------------------------------------------------------
 
 PROPOSED_FEATURES = [
     'numRREQsSent:count',
@@ -85,23 +75,15 @@ PROPOSED_FEATURES = [
 ]
 
 
-# -----------------------------------------------------------------------------
-# Statistical filtering
-# -----------------------------------------------------------------------------
-
 CORRELATION_THRESHOLD = 0.99
 
 
-# -----------------------------------------------------------------------------
-# Output directory
-# -----------------------------------------------------------------------------
-
-SAVE_DIR = r'G:/MANET_RESULTS/X100_MATCHED_EVALUATION'
+SAVE_DIR = str(Path(os.environ.get('MANET_X100_OUTPUT', str(PROJECT_ROOT / 'results' / 'X100_MATCHED_EVALUATION'))).expanduser())
 
 # X100 was not part of the global six-feature selection (X7/X25/X50 only).
 # Create the X100 run-grouped partition locally if its CSV does not exist.
 # Reuse and validate the saved CSV on subsequent runs; never overwrite it.
-BENCHMARK_SPLIT_PATH = r'F:/JUPITERABID/splits/100NODE/100node_run_split.csv'
+BENCHMARK_SPLIT_PATH = str(SPLIT_ROOT / '100NODE' / '100node_run_split.csv')
 N_INNER_FOLDS = 5
 EXPECTED_TOTAL_RUNS = 1200
 EXPECTED_TRAIN_RUNS = 840
@@ -143,10 +125,6 @@ print("FULL NON-LEAKAGE / STATISTICAL FILTERING / PROPOSED SIX")
 print("=" * 120)
 
 
-# =============================================================================
-# 2. LOAD RAW DATA
-# =============================================================================
-
 df_raw = pd.read_csv(
     RAW_PATH
 )
@@ -160,10 +138,6 @@ print(
     df_raw.shape
 )
 
-
-# =============================================================================
-# 3. EXTRACT NODE IDENTIFIER
-# =============================================================================
 
 df_raw['host_id_full'] = (
     df_raw['module']
@@ -189,21 +163,13 @@ print(
 )
 
 
-# =============================================================================
-# 4. NUMERIC VALUE
-# =============================================================================
-
 df_raw['value'] = pd.to_numeric(
     df_raw['value'],
     errors='coerce'
 )
 
 
-# =============================================================================
-# 5. NODE-LEVEL MATRIX
-#
 # One row = one node in one simulation run
-# =============================================================================
 
 df_features = (
     df_raw
@@ -234,17 +200,12 @@ print(
 )
 
 
-# =============================================================================
-# 6. LABEL
-# =============================================================================
-
 def label_func(row):
 
     run_name = str(
         row['run']
     )
 
-    # Normal simulation
     if 'attacker' not in run_name.lower():
         return 0
 
@@ -278,10 +239,6 @@ print(
 )
 
 
-# =============================================================================
-# 7. RUN CONDITION
-# =============================================================================
-
 df_features['run_condition'] = np.where(
     df_features[
         'run'
@@ -309,7 +266,6 @@ run_table = (
 )
 
 
-# Safety check
 condition_count_per_run = (
     run_table
     .groupby('run')[
@@ -346,14 +302,11 @@ print(
 )
 
 
-# =============================================================================
-# 8. CREATE OR REUSE THE X100 RUN-GROUPED 70/30 PARTITION
 # The unique simulation runs, rather than individual node records, are split.
 # Attack/Normal stratification is used solely to balance the two partitions.
 # X100 is excluded from the globally selected six-feature representation.
 # No statistical filters, scalers or classifiers are fitted before splitting.
 # A saved manifest is always reused, not regenerated or silently overwritten.
-# =============================================================================
 
 def sha_run_ids(ids):
     return hashlib.sha256("\n".join(sorted(map(str, ids))).encode('utf-8')).hexdigest()
@@ -468,9 +421,6 @@ print('X100 HOLDOUT30 reserved for final evaluation: PASS')
 train_run_table = split_export[split_export['partition'].eq('TRAIN')].copy()
 test_run_table = split_export[split_export['partition'].eq('TEST')].copy()
 
-# =============================================================================
-# 9. EXPORT A COPY OF THE GENERATED OR VERIFIED 70/30 RUN SPLIT
-# =============================================================================
 
 train_split_export = (
     train_run_table
@@ -506,10 +456,6 @@ split_export.to_csv(
     index=False
 )
 
-
-# =============================================================================
-# 10. NODE-LEVEL TRAIN / TEST
-# =============================================================================
 
 train_df = (
     df_features[
@@ -585,12 +531,9 @@ print(
 )
 
 
-# =============================================================================
-# 10A. X100 LABEL / THREE-ATTACKER CONSISTENCY AUDIT
 # 600 Normal + 600 Attack runs, 100 node profiles per run.
 # A complete Attack run must contain all three designated Blackhole hosts.
 # No holdout labels are used for feature selection; these are dataset audits.
-# =============================================================================
 
 expected_conditions = {'normal': 600, 'attack': 600}
 actual_conditions = (
@@ -627,10 +570,6 @@ if (train_attack_count, test_attack_count) != (1260, 540):
 print('X100 three-Blackhole attacker audit: PASS')
 print('Train/holdout attacker rows:', train_attack_count, test_attack_count)
 
-
-# =============================================================================
-# 11. RAW PREDICTIVE FEATURES
-# =============================================================================
 
 METADATA_COLUMNS = {
     'run',
@@ -680,11 +619,7 @@ if len(df_features) != EXPECTED_TOTAL_NODE_ROWS or len(run_table) != EXPECTED_TO
         f'runs={len(run_table)}; expected {EXPECTED_TOTAL_NODE_ROWS} and {EXPECTED_TOTAL_RUNS}'
     )
 
-# =============================================================================
-# 12. REPRESENTATION 1 — FULL NON-LEAKAGE
-#
 # Remove ONLY the three predefined leakage variables.
-# =============================================================================
 
 full_non_leakage_features = [
 
@@ -732,15 +667,12 @@ if len(full_non_leakage_features) != 56 or len(removed_leakage) != 3:
         f'removed-leakage={removed_leakage}'
     )
 
-# =============================================================================
-# 13. REPRESENTATION 2 - STATISTICAL FILTERING
 # Zero-variance and absolute Pearson-correlation (>=0.99) filters are fitted
 # independently within the training portion of five TRAIN70 grouped folds.
 # Target-correlation tie-breaking uses inner-training labels only.
 # The final statistical representation is the union across these five fits.
 # No inner-validation or HOLDOUT30 data fit either feature filter.
 # MI, PFI and TreeSHAP are not computed for this statistical baseline.
-# =============================================================================
 
 def fit_statistical_filters(X_inner_train, y_inner_train):
     selector = VarianceThreshold(threshold=0.0)
@@ -838,9 +770,6 @@ pd.DataFrame({'Statistical_Feature': statistical_features}).to_csv(
     os.path.join(SAVE_DIR, 'X100_statistical_selected_features.csv'), index=False
 )
 
-# =============================================================================
-# 14. REPRESENTATION 3 — PROPOSED SIX
-# =============================================================================
 
 missing_proposed = [
 
@@ -892,10 +821,6 @@ for i, feature in enumerate(
     )
 
 
-# =============================================================================
-# 15. REPRESENTATION DICTIONARY
-# =============================================================================
-
 REPRESENTATIONS = {
 
     'Full non-leakage':
@@ -908,10 +833,6 @@ REPRESENTATIONS = {
         PROPOSED_FEATURES
 }
 
-
-# =============================================================================
-# 16. FEATURE AUDIT FILE
-# =============================================================================
 
 with open(
     FEATURE_AUDIT_PATH,
@@ -964,10 +885,6 @@ with open(
 
         f.write("\n")
 
-
-# =============================================================================
-# 17. METRICS
-# =============================================================================
 
 def compute_metrics(
     y_true,
@@ -1084,10 +1001,6 @@ def compute_metrics(
     }
 
 
-# =============================================================================
-# 18. CLASSIFIERS
-# =============================================================================
-
 def build_models():
 
     return {
@@ -1126,10 +1039,6 @@ def build_models():
     }
 
 
-# =============================================================================
-# 19. EVALUATE THREE REPRESENTATIONS WITH FIVE CLASSIFIERS
-# =============================================================================
-
 results = []
 
 
@@ -1150,9 +1059,7 @@ for representation_name, feature_list in REPRESENTATIONS.items():
     print("#" * 120)
 
 
-    # -------------------------------------------------------------------------
     # Reuse the same node-level train/test partitions for all representations
-    # -------------------------------------------------------------------------
 
     X_train = (
         train_df[
@@ -1186,9 +1093,7 @@ for representation_name, feature_list in REPRESENTATIONS.items():
     )
 
 
-    # -------------------------------------------------------------------------
     # Exclude labels and run/node metadata from classifier predictors
-    # -------------------------------------------------------------------------
 
     forbidden = {
         'run',
@@ -1209,9 +1114,7 @@ for representation_name, feature_list in REPRESENTATIONS.items():
     )
 
 
-    # -------------------------------------------------------------------------
     # Training-only scaling
-    # -------------------------------------------------------------------------
 
     scaler = StandardScaler()
 
@@ -1237,9 +1140,7 @@ for representation_name, feature_list in REPRESENTATIONS.items():
 
     for classifier_name, model in models.items():
 
-        # ---------------------------------------------------------------------
         # Scale SVM, KNN and MLP using training-fitted standardization
-        # ---------------------------------------------------------------------
 
         if classifier_name in {
             'SVM',
@@ -1290,10 +1191,6 @@ for representation_name, feature_list in REPRESENTATIONS.items():
             }
         )
 
-
-# =============================================================================
-# 20. DETAILED RESULT TABLE
-# =============================================================================
 
 results_df = pd.DataFrame(
     results
@@ -1386,11 +1283,9 @@ print(
 )
 
 
-# =============================================================================
 # 20A. MACRO-AVERAGED METRICS ON THE FINAL 30% HOLDOUT
 # Export macro F1, macro precision and macro recall summaries. They differ
 # from the positive-class F1 values in the separate attack-class summary.
-# =============================================================================
 
 macro_f1_table = results_df.pivot(
     index='Representation', columns='Classifier', values='Macro_F1'
@@ -1415,11 +1310,8 @@ for metric in ('Macro_Precision', 'Macro_Recall'):
     ])
     tbl.to_csv(os.path.join(SAVE_DIR, f'X100_{metric.upper()}_HOLDOUT30.csv'))
 
-# =============================================================================
-# 21. ATTACK-CLASS F1 SUMMARY
 # One row per feature representation and one column per classifier.
 # This is positive-class (Blackhole) F1, not macro F1.
-# =============================================================================
 
 attack_f1_table = (
     results_df[
@@ -1441,7 +1333,6 @@ attack_f1_table = (
 )
 
 
-# Add number of features
 feature_counts = {
 
     'Full non-leakage':
@@ -1485,10 +1376,6 @@ print(
 print("=" * 120)
 
 
-# =============================================================================
-# 22. ATTACK-CLASS F1 SCORES IN PERCENT
-# =============================================================================
-
 attack_f1_percent = (
     attack_f1_table
     .copy()
@@ -1520,10 +1407,7 @@ print(
 )
 
 
-# =============================================================================
-# 23. ADDITIONAL METRIC TABLES
 # Compare all three feature representations across five classifiers.
-# =============================================================================
 
 METRICS_TO_PRINT = [
     'Accuracy',
@@ -1576,10 +1460,6 @@ for metric in METRICS_TO_PRINT:
     )
 
 
-# =============================================================================
-# 24. SAVE TABLES
-# =============================================================================
-
 results_df.to_csv(
     DETAILED_RESULTS_PATH,
     index=False
@@ -1601,10 +1481,6 @@ attack_f1_percent.to_csv(
     percent_path
 )
 
-
-# =============================================================================
-# 25. FINAL PROTOCOL AUDIT
-# =============================================================================
 
 print("\n\n" + "=" * 120)
 print("FINAL X100 MATCHED-EVALUATION PROTOCOL AUDIT")
@@ -1721,10 +1597,6 @@ print(
     "Statistical filtering                : 5 inner fits + union"
 )
 
-
-# =============================================================================
-# 26. INTEGRITY CHECK
-# =============================================================================
 
 assert (
     len(results_df) == 15
