@@ -1,7 +1,4 @@
-# =============================================================================
 # CROSS-SCENARIO 25 -> 15 EVALUATION PIPELINE
-#
-# This script covers the complete 25 -> 15 experiment:
 #   1) Raw OMNeT++ data -> compact node-level datasets (59 behavioral features)
 #   2) Leakage removal (59 -> 56)
 #   3) Source-only grouped 5-fold statistical filtering + union
@@ -10,13 +7,10 @@
 #   6) KS distribution-shift analysis on the proposed six features
 #      with 2,000 complete-run bootstrap replicates
 #   7) Machine-readable metrics, KS results, retained features, and protocol audit
-#
-# Source scenario : 25 nodes, attacker host[15]
-# Target scenario : 15 nodes, attacker host[8]
-# =============================================================================
 
 import gc
 import json
+import os
 import warnings
 from pathlib import Path
 
@@ -47,9 +41,7 @@ except ImportError:
     display = None
 
 
-# =============================================================================
 # 1. CONFIGURATION
-# =============================================================================
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
@@ -60,12 +52,15 @@ N_BOOTSTRAP = 2000
 KS_BOOTSTRAP = 2000
 CONFIDENCE_LEVEL = 0.95
 
-RAW_DATA_DIR = Path(r"F:/2026/RAWDATASET")
-
-# By default, validate and reuse existing compact CSVs.
-# Missing files are built from RAW; REBUILD_COMPACT_DATASETS=True explicitly rebuilds them.
-COMPACT_DIR = Path(r"G:/FINAL_BEHAVIORAL_DATASETS/CROSS_25_15_FULL_PIPELINE")
-OUTPUT_DIR = Path(r"G:/FINAL_BEHAVIORAL_DATASETS/CROSS_25_15_FULL_PIPELINE_B1_GROUPED")
+# Repository-relative defaults can be overridden for local datasets and outputs.
+PROJECT_ROOT = Path(os.environ.get("MANET_PROJECT_ROOT", str(Path.cwd()))).expanduser()
+RAW_DATA_DIR = Path(os.environ.get("MANET_DATA_DIR", str(PROJECT_ROOT / "data"))).expanduser()
+COMPACT_DIR = Path(os.environ.get(
+    "MANET_CROSS_25_15_COMPACT", str(PROJECT_ROOT / "compact_datasets" / "CROSS_25_15_FULL_PIPELINE")
+)).expanduser()
+OUTPUT_DIR = Path(os.environ.get(
+    "MANET_CROSS_25_15_OUTPUT", str(PROJECT_ROOT / "results" / "CROSS_25_15_FULL_PIPELINE_B1_GROUPED")
+)).expanduser()
 RESULTS_DIR = OUTPUT_DIR / "evaluation"
 REBUILD_COMPACT_DATASETS = False  # True only if deliberately recreating compact CSVs
 COMPACT_DIR.mkdir(parents=True, exist_ok=True)
@@ -134,9 +129,7 @@ SCENARIOS = [
 ]
 
 
-# =============================================================================
 # 2. RAW OMNeT++ DATA -> COMPACT NODE-LEVEL DATASETS
-# =============================================================================
 
 def build_compact_dataset(cfg):
     print("\n" + "=" * 120)
@@ -148,7 +141,6 @@ def build_compact_dataset(cfg):
     if not cfg["raw_path"].exists():
         raise FileNotFoundError(f"Raw file not found:\n{cfg['raw_path']}")
 
-    # Read only the four columns used by the node-profile pipeline.
     df_raw = pd.read_csv(
         cfg["raw_path"],
         usecols=["run", "module", "name", "value"],
@@ -452,11 +444,7 @@ print(
     preparation_audit_path,
 )
 
-
-
-# =============================================================================
 # 3. MATCHED EXTERNAL EVALUATION
-# =============================================================================
 
 print("=" * 140)
 print("SECTION 4.2 — 25 -> 15 MATCHED EXTERNAL EVALUATION")
@@ -488,9 +476,7 @@ print("25-node run structure: PASS")
 print("15-node run structure: PASS")
 
 
-# =============================================================================
 # FEATURE SCHEMA + FULL 56
-# =============================================================================
 
 source_raw_features = [c for c in source_df.columns if c not in METADATA_COLUMNS]
 target_raw_features = [c for c in target_df.columns if c not in METADATA_COLUMNS]
@@ -528,9 +514,7 @@ if len(full_features) != 56:
 print("Full non-leakage count:", len(full_features))
 
 
-# =============================================================================
 # SOURCE-ONLY STATISTICAL FILTER — GROUPED 5-FOLD UNION
-# =============================================================================
 # External transfer uses all X25 source runs, independently of the
 # intra-dataset TRAIN70/HOLDOUT30 split. In each grouped fold, fit
 # zero-variance and Pearson (|r| >= 0.99) filters on inner-training runs
@@ -538,7 +522,6 @@ print("Full non-leakage count:", len(full_features))
 # correlation. Use the union of the five retained feature sets.
 # X15 target data and labels do not influence source feature selection.
 # Final classifiers are trained on all X25 runs for each representation.
-# =============================================================================
 
 def fit_b1_post_filters(X_inner_train, y_inner_train, corr_threshold=0.99):
     """Source-only zero-variance and Pearson pruning with label-based tie-break."""
@@ -575,7 +558,6 @@ def fit_b1_post_filters(X_inner_train, y_inner_train, corr_threshold=0.99):
 
 def fit_source_only_b1_inner_union(source, feature_columns, n_folds=5, seed=42):
     """B1 selection: five grouped, stratified inner-training fits then union."""
-    # Preserve the source run order from the compact dataset.
     run_table = source[["run", "run_condition"]].drop_duplicates().reset_index(drop=True)
     if run_table["run"].nunique() != len(run_table):
         raise RuntimeError("A simulation run has conflicting condition labels")
@@ -696,9 +678,7 @@ for i, feature in enumerate(statistical_features, 1):
     )
 
 
-# =============================================================================
 # PROPOSED SIX + REPRESENTATIONS
-# =============================================================================
 
 for feature in PROPOSED_FEATURES:
     if feature not in source_df.columns or feature not in target_df.columns:
@@ -715,9 +695,7 @@ for name in REPRESENTATION_ORDER:
     print(f"{name:<26s}: {len(representations[name])} features")
 
 
-# =============================================================================
 # MODELS
-# =============================================================================
 
 def make_models():
     return [
@@ -802,9 +780,7 @@ def metrics_from_counts(tn, fp, fn, tp):
     return p, r, f1, fpr
 
 
-# =============================================================================
 # COMMON TARGET-RUN BOOTSTRAP
-# =============================================================================
 
 target_run_order = target_df["run"].astype(str).drop_duplicates().to_numpy()
 n_target_runs = len(target_run_order)
@@ -844,9 +820,7 @@ def bootstrap_ci(run_table):
     }
 
 
-# =============================================================================
 # MATCHED 3 x 5 BENCHMARK
-# =============================================================================
 
 results = []
 prediction_frames = []
@@ -880,10 +854,7 @@ for representation_name in REPRESENTATION_ORDER:
         model.fit(fit_X, y_source)
         y_pred = model.predict(test_X)
 
-        # -------------------------------------------------------------
         # Machine-readable target-node predictions for reproducibility.
-        # One row per target node for each representation/classifier.
-        # -------------------------------------------------------------
         prediction_frames.append(
             pd.DataFrame({
                 "Transfer": "25→15",
@@ -950,9 +921,7 @@ if len(predictions_df) != expected_prediction_rows:
     )
 
 
-# =============================================================================
 # KS — PROPOSED SIX ONLY, COMPLETE-RUN BOOTSTRAP
-# =============================================================================
 
 def run_matrix(df, feature):
     groups = [
@@ -1026,9 +995,7 @@ for feature_index, feature in enumerate(PROPOSED_FEATURES):
 ks_df = pd.DataFrame(ks_rows)
 
 
-# =============================================================================
 # RESULTS FORMATTING AND EXPORT
-# =============================================================================
 
 def format_ci(point, low, high):
     return f"{point:.4f} [{low:.4f}, {high:.4f}]"
