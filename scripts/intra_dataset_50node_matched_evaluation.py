@@ -1048,6 +1048,17 @@ def build_models():
     }
 
 
+# Original HOLDOUT30 predictions, with one row per node / representation / classifier.
+PREDICTIONS_PATH = os.path.join(SAVE_DIR, 'X50_NODE_LEVEL_PREDICTIONS.csv')
+PREDICTION_COLUMNS = [
+    'Representation', 'Feature_Count', 'Classifier', 'run',
+    'host_id_full', 'node_id', 'run_condition', 'y_true', 'y_pred'
+]
+# Start a new file on each execution, without retaining all predictions in RAM.
+pd.DataFrame(columns=PREDICTION_COLUMNS).to_csv(PREDICTIONS_PATH, index=False)
+prediction_rows_written = 0
+
+
 # 19. EVALUATE THREE REPRESENTATIONS WITH FIVE CLASSIFIERS
 
 
@@ -1195,6 +1206,42 @@ for representation_name, feature_list in REPRESENTATIONS.items():
         )
 
 
+        # Export the exact predictions already used to calculate the metrics.
+        # Metadata is exported for auditing but is never passed to model.fit().
+        predictions_chunk = test_df[
+            ['run', 'host_id_full', 'run_condition']
+        ].reset_index(drop=True).copy()
+        predictions_chunk.insert(0, 'Representation', representation_name)
+        predictions_chunk.insert(1, 'Feature_Count', len(feature_list))
+        predictions_chunk.insert(2, 'Classifier', classifier_name)
+        predictions_chunk.insert(
+            5, 'node_id',
+            predictions_chunk['host_id_full'].str.extract(r'host\[(\d+)\]')[0].astype(int)
+        )
+        predictions_chunk['y_true'] = np.asarray(y_test, dtype=int)
+        predictions_chunk['y_pred'] = np.asarray(y_pred, dtype=int)
+        predictions_chunk = predictions_chunk[PREDICTION_COLUMNS]
+
+        # Audit the prediction rows against the original confusion matrix.
+        cm_from_export = confusion_matrix(
+            predictions_chunk['y_true'], predictions_chunk['y_pred'], labels=[0, 1]
+        )
+        expected_cm = np.array([
+            [metrics['TN'], metrics['FP']],
+            [metrics['FN'], metrics['TP']]
+        ])
+        if not np.array_equal(cm_from_export, expected_cm):
+            raise RuntimeError(
+                f'Prediction/metrics mismatch: {representation_name} / {classifier_name}'
+            )
+        if len(predictions_chunk) != len(test_df):
+            raise RuntimeError('Prediction row count differs from HOLDOUT30')
+
+        predictions_chunk.to_csv(
+            PREDICTIONS_PATH, mode='a', header=False, index=False
+        )
+        prediction_rows_written += len(predictions_chunk)
+
         results.append(
             {
 
@@ -1210,6 +1257,16 @@ for representation_name, feature_list in REPRESENTATIONS.items():
                 **metrics
             }
         )
+
+
+expected_prediction_rows = len(test_df) * len(REPRESENTATIONS) * len(build_models())
+if prediction_rows_written != expected_prediction_rows or expected_prediction_rows != 180000:
+    raise RuntimeError(
+        f'X50 prediction count mismatch: {prediction_rows_written} vs '
+        f'{expected_prediction_rows} (expected 180000)'
+    )
+print(f'\nNODE-LEVEL PREDICTIONS SAVED: {PREDICTIONS_PATH}')
+print(f'PREDICTION ROWS: {prediction_rows_written} (expected {expected_prediction_rows})')
 
 
 # 20. DETAILED RESULT TABLE
@@ -1680,6 +1737,7 @@ saved_output_paths = [
     os.path.join(SAVE_DIR, 'X50_macro_f1_holdout30.csv'),
     os.path.join(SAVE_DIR, 'X50_MACRO_PRECISION_HOLDOUT30.csv'),
     os.path.join(SAVE_DIR, 'X50_MACRO_RECALL_HOLDOUT30.csv'),
+    PREDICTIONS_PATH,
 ]
 print("\nFILES SAVED:")
 for index, saved_path in enumerate(saved_output_paths, 1):
