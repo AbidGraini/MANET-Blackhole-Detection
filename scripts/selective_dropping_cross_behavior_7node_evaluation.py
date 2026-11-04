@@ -30,12 +30,12 @@ from sklearn.exceptions import ConvergenceWarning
 
 warnings.filterwarnings('ignore', category=ConvergenceWarning)
 
-# 1) Paths: environment overrides with the established local defaults.
-# These overrides affect file locations only; the experiment protocol is unchanged.
-DATA_DIR = Path(os.environ.get('MANET_DATA_DIR', r'F:/2026/RAWDATASET')).expanduser()
+# 1) Repository-relative defaults; environment overrides affect locations only.
+PROJECT_ROOT = Path(os.environ.get('MANET_PROJECT_ROOT', str(Path.cwd()))).expanduser()
+DATA_DIR = Path(os.environ.get('MANET_DATA_DIR', str(PROJECT_ROOT / 'data'))).expanduser()
 OUTPUT_DIR = Path(os.environ.get(
     'MANET_MIXED_DROP_OUTPUT',
-    r'G:/FINAL_BEHAVIORAL_DATASETS/CROSS_BEHAVIOR_Drop_P100%_Drop_P25%_TO_Drop_P50%'
+    str(PROJECT_ROOT / 'results' / 'CROSS_BEHAVIOR_Drop_P100%_Drop_P25%_TO_Drop_P50%')
 )).expanduser()
 RAW_FILES = {
     'Drop_P100%': DATA_DIR / '7NODE1BLACK300RUN600S_100_PROB.csv',
