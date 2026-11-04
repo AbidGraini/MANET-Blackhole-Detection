@@ -973,6 +973,14 @@ def build_models():
 
 # 19. EVALUATE THREE REPRESENTATIONS WITH FIVE CLASSIFIERS
 
+# Additional audit output only; original training and evaluation remain unchanged.
+PREDICTIONS_PATH = os.path.join(SAVE_DIR, 'X7_NODE_LEVEL_PREDICTIONS.csv')
+PREDICTION_COLUMNS = [
+    'Representation', 'Feature_Count', 'Classifier',
+    'run', 'host_id_full', 'node_id', 'run_condition', 'y_true', 'y_pred'
+]
+prediction_frames = []
+
 results = []
 
 
@@ -1101,6 +1109,32 @@ for representation_name, feature_list in REPRESENTATIONS.items():
             y_pred
         )
 
+        # Export the exact HOLDOUT30 predictions already used for the metrics.
+        # Preserve test_df row order; identifiers are audit metadata, never predictors.
+        prediction_frame = test_df[
+            ['run', 'host_id_full', 'run_condition']
+        ].copy().reset_index(drop=True)
+        prediction_frame.insert(0, 'Classifier', classifier_name)
+        prediction_frame.insert(0, 'Feature_Count', len(feature_list))
+        prediction_frame.insert(0, 'Representation', representation_name)
+        prediction_frame['node_id'] = (
+            prediction_frame['host_id_full']
+            .str.extract(r'host\[(\d+)\]', expand=False)
+            .astype(int)
+        )
+        prediction_frame['y_true'] = np.asarray(y_test, dtype=int)
+        prediction_frame['y_pred'] = np.asarray(y_pred, dtype=int)
+        prediction_frames.append(prediction_frame[PREDICTION_COLUMNS])
+
+        # The saved prediction labels must reproduce the original confusion counts.
+        exported_cm = confusion_matrix(
+            prediction_frame['y_true'], prediction_frame['y_pred'], labels=[0, 1]
+        )
+        if tuple(exported_cm.ravel()) != (
+            metrics['TN'], metrics['FP'], metrics['FN'], metrics['TP']
+        ):
+            raise RuntimeError('Prediction export does not match computed metrics')
+
 
         results.append(
             {
@@ -1118,6 +1152,17 @@ for representation_name, feature_list in REPRESENTATIONS.items():
             }
         )
 
+
+# Save one machine-readable file for all 3 representations x 5 classifiers.
+predictions_df = pd.concat(prediction_frames, ignore_index=True)
+expected_prediction_rows = len(test_df) * len(REPRESENTATIONS) * len(build_models())
+if len(predictions_df) != expected_prediction_rows:
+    raise RuntimeError(
+        f'Prediction row-count mismatch: {len(predictions_df)} != {expected_prediction_rows}'
+    )
+predictions_df.to_csv(PREDICTIONS_PATH, index=False)
+print(f'\nNODE-LEVEL PREDICTIONS SAVED: {PREDICTIONS_PATH}')
+print(f'PREDICTION ROWS: {len(predictions_df)} (expected {expected_prediction_rows})')
 
 # 20. DETAILED RESULT TABLE
 
