@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import hashlib
 import warnings
 import numpy as np
@@ -46,7 +47,11 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 # 1. CONFIGURATION
 # =============================================================================
 
-RAW_PATH = r'F:/2026/RAWDATASET/75NODE2BLACK500RUN100S.csv'
+# Repository-relative defaults; override with environment variables when needed.
+PROJECT_ROOT = Path(os.environ.get("MANET_PROJECT_ROOT", str(Path.cwd()))).expanduser()
+DATA_DIR = Path(os.environ.get("MANET_DATA_DIR", str(PROJECT_ROOT / "data"))).expanduser()
+SPLIT_ROOT = Path(os.environ.get("MANET_SPLITS_DIR", str(PROJECT_ROOT / "splits"))).expanduser()
+RAW_PATH = str(DATA_DIR / "75NODE2BLACK500RUN100S.csv")
 
 # Both the outer 70/30 run split and the five statistical inner folds
 # use a fixed random seed; statistical filters never use HOLDOUT30 rows.
@@ -95,12 +100,14 @@ CORRELATION_THRESHOLD = 0.99
 # Output directory
 # -----------------------------------------------------------------------------
 
-SAVE_DIR = r'G:/MANET_RESULTS/X75_MATCHED_EVALUATION'
+SAVE_DIR = str(Path(os.environ.get(
+    "MANET_X75_OUTPUT", str(PROJECT_ROOT / "results" / "X75_MATCHED_EVALUATION")
+)).expanduser())
 
 # X75 was not part of the global six-feature selection (X7/X25/X50 only).
 # Create the X75 run-grouped partition locally if its CSV does not exist.
 # Reuse and validate the saved CSV on subsequent runs; never overwrite it.
-BENCHMARK_SPLIT_PATH = r'F:/JUPITERABID/splits/75NODE/75node_run_split.csv'
+BENCHMARK_SPLIT_PATH = str(SPLIT_ROOT / "75NODE" / "75node_run_split.csv")
 N_INNER_FOLDS = 5
 EXPECTED_TOTAL_RUNS = 1000
 EXPECTED_TRAIN_RUNS = 700
