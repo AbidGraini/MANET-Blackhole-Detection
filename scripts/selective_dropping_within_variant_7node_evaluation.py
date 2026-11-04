@@ -25,11 +25,12 @@ from sklearn.exceptions import ConvergenceWarning
 
 warnings.filterwarnings('ignore', category=ConvergenceWarning)
 
-# Local defaults match the evaluated datasets; environment variables allow relocation.
-DATA_DIR = Path(os.environ.get('MANET_DATA_DIR', r'F:/2026/RAWDATASET')).expanduser()
+# Repository-relative defaults; environment variables allow local overrides.
+PROJECT_ROOT = Path(os.environ.get('MANET_PROJECT_ROOT', str(Path.cwd()))).expanduser()
+DATA_DIR = Path(os.environ.get('MANET_DATA_DIR', str(PROJECT_ROOT / 'data'))).expanduser()
 OUTPUT_ROOT = Path(os.environ.get(
     'MANET_SELECTIVE_DROP_OUTPUT',
-    r'F:/JUPITERABID/results/7NODE_SELECTIVE_DROPPING_WITHIN_VARIANT'
+    str(PROJECT_ROOT / 'results' / '7NODE_SELECTIVE_DROPPING_WITHIN_VARIANT')
 )).expanduser()
 RAW_FILES = {
     'Drop_P100%': DATA_DIR / '7NODE1BLACK300RUN600S_100_PROB.csv',
