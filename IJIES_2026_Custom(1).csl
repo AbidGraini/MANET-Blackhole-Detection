@@ -1,33 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <style xmlns="http://purl.org/net/xbiblio/csl" version="1.0" class="in-text" default-locale="en-US">
   <info>
-    <title>IJIES 2026.10.1 (Custom, Unofficial)</title>
-    <title-short>IJIES Custom</title-short>
-    <id>https://example.org/styles/ijies-custom-2026-10-1</id>
-    <link href="https://example.org/styles/ijies-custom-2026-10-1" rel="self"/>
+    <title>IJIES 2026.10.1 (Custom, Revised v2, Unofficial)</title>
+    <title-short>IJIES Custom v2</title-short>
+    <id>https://github.com/AbidGraini/MANET-Blackhole-Detection/blob/main/IJIES_2026_Custom_v2.csl</id>
+    <link href="https://github.com/AbidGraini/MANET-Blackhole-Detection/blob/main/IJIES_2026_Custom_v2.csl" rel="self"/>
     <link href="https://www.inass.org/" rel="documentation"/>
-    <author>
-      <name>Custom IJIES style adaptation</name>
-    </author>
+    <author><name>Custom IJIES style adaptation</name></author>
     <category citation-format="numeric"/>
     <category field="engineering"/>
-    <summary>Unofficial custom CSL adaptation of the IJIES Format 2026.10.1 reference examples. Review generated entries against the journal template and source bibliographic metadata before submission.</summary>
+    <summary>Unofficial style based on IJIES 2026.10.1 examples. v2 places commas outside closing quotation marks; keeps initials, numeric order, volume/issue/pages, and DOI. Generic CSL cannot abbreviate arbitrary imported conference proceedings names; verify bibliography before submission.</summary>
     <updated>2026-11-07T00:00:00+00:00</updated>
   </info>
+
+  <!-- IJIES example uses closing quotation mark BEFORE comma, even for English output. -->
+  <locale xml:lang="en-US">
+    <style-options punctuation-in-quote="false"/>
+  </locale>
 
   <macro name="names">
     <names variable="author">
       <name initialize-with=". " delimiter=", " and="text" delimiter-precedes-last="contextual"/>
-      <substitute>
-        <names variable="editor"/>
-      </substitute>
+      <substitute><names variable="editor"/></substitute>
     </names>
   </macro>
 
   <macro name="year">
-    <date variable="issued">
-      <date-part name="year"/>
-    </date>
+    <date variable="issued"><date-part name="year"/></date>
+  </macro>
+
+  <macro name="pages">
+    <choose>
+      <if variable="page">
+        <group delimiter=" "><text value="pp."/><text variable="page"/></group>
+      </if>
+    </choose>
   </macro>
 
   <macro name="journal-details">
@@ -43,24 +50,25 @@
           <group delimiter=" "><text value="No."/><text variable="issue"/></group>
         </if>
       </choose>
-      <choose>
-        <if variable="page">
-          <group delimiter=" "><text value="pp."/><text variable="page"/></group>
-        </if>
-      </choose>
+      <text macro="pages"/>
       <text macro="year"/>
     </group>
   </macro>
 
   <macro name="conference-details">
     <group delimiter=", ">
-      <text variable="container-title" prefix="In: "/>
-      <text variable="event-place"/>
       <choose>
-        <if variable="page">
-          <group delimiter=" "><text value="pp."/><text variable="page"/></group>
+        <!-- When event name exists, the conference wording is supplied cleanly. -->
+        <if variable="event">
+          <text variable="event" prefix="In: Proc. of "/>
         </if>
+        <else>
+          <!-- Keep an imported full proceedings name as-is; do not duplicate 'Proceedings of'. -->
+          <text variable="container-title" prefix="In: "/>
+        </else>
       </choose>
+      <text variable="event-place"/>
+      <text macro="pages"/>
       <text macro="year"/>
     </group>
   </macro>
@@ -106,9 +114,7 @@
   </macro>
 
   <citation collapse="citation-number" after-collapse-delimiter=", ">
-    <sort>
-      <key variable="citation-number"/>
-    </sort>
+    <sort><key variable="citation-number"/></sort>
     <layout prefix="[" suffix="]" delimiter=", ">
       <text variable="citation-number"/>
     </layout>
